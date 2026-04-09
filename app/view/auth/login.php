@@ -65,7 +65,7 @@
     <form action="proses_login.php" method="POST">
         <div class="input-group">
             <i class="fas fa-user"></i>
-            <input type="text" name="username" placeholder="Username" required autocomplete="off">
+            <input type="text" name="username" placeholder="Username" required autocomplete="off" autofocus>
         </div>
         <div class="input-group">
             <i class="fas fa-lock"></i>

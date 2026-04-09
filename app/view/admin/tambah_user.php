@@ -2,35 +2,37 @@
 session_start();
 include $_SERVER['DOCUMENT_ROOT'] . "/peminjaman/app/config/koneksi.php";
 
-if (!isset($koneksi)) {
-    die("Koneksi gagal! Pastikan variabel \$koneksi di koneksi.php sudah benar.");
-}
-
-// Ambil data session
-$nama_session = $_SESSION['nama'] ?? 'Admin';
-$username_session = $_SESSION['username'] ?? 'User';
-$session_level = isset($_SESSION['level']) ? strtolower(trim($_SESSION['level'])) : '';
-
-// Proteksi Halaman: Hanya Admin
-if ($session_level !== 'admin') {
-    echo "<script>alert('Akses Ditolak!'); window.location='dashboard.php';</script>";
+// 1. PROTEKSI AKSES (Hanya Admin)
+if (!isset($_SESSION['username']) || strtolower($_SESSION['role'] ?? $_SESSION['level']) !== 'admin') {
+    header("location:login.php");
     exit();
 }
 
-// Proses Simpan User
+$nama_session = $_SESSION['nama'] ?? $_SESSION['username'];
+
+// 2. LOGIKA PROSES TAMBAH USER (Jika Form di-submit)
 if (isset($_POST['simpan'])) {
-    $username     = mysqli_real_escape_string($koneksi, $_POST['username']);
-    $password     = mysqli_real_escape_string($koneksi, $_POST['password']); 
     $nama_lengkap = mysqli_real_escape_string($koneksi, $_POST['nama_lengkap']);
-    $level_pilihan = $_POST['level_pilihan'];
+    $username     = mysqli_real_escape_string($koneksi, $_POST['username']);
+    $level        = mysqli_real_escape_string($koneksi, $_POST['level']);
+    $password_raw = $_POST['password'];
 
-    $query = "INSERT INTO users (username, password, nama_lengkap, level) 
-              VALUES ('$username', '$password', '$nama_lengkap', '$level_pilihan')";
+    // WAJIB HASH PASSWORD
+    $password_hash = password_hash($password_raw, PASSWORD_DEFAULT);
 
-    if (mysqli_query($koneksi, $query)) {
-        echo "<script>alert('User berhasil ditambahkan!'); window.location='user.php';</script>";
+    // Cek Username Duplikat
+    $cek = mysqli_query($koneksi, "SELECT * FROM users WHERE username = '$username'");
+    if (mysqli_num_rows($cek) > 0) {
+        echo "<script>alert('Gagal! Username sudah terdaftar.'); window.history.back();</script>";
     } else {
-        echo "Error: " . mysqli_error($koneksi);
+        $query = "INSERT INTO users (nama_lengkap, username, password, level) 
+                  VALUES ('$nama_lengkap', '$username', '$password_hash', '$level')";
+        
+        if (mysqli_query($koneksi, $query)) {
+            echo "<script>alert('User berhasil ditambahkan!'); window.location='user.php';</script>";
+        } else {
+            echo "<script>alert('Gagal: " . mysqli_error($koneksi) . "');</script>";
+        }
     }
 }
 ?>
@@ -51,7 +53,6 @@ if (isset($_POST['simpan'])) {
             --bg-main: #f0f2f5;
             --text-gray: #bdc3c7;
             --logout-red: #ff7675;
-            --danger: #e74c3c;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -81,10 +82,9 @@ if (isset($_POST['simpan'])) {
         .logout-link { 
             display: flex; align-items: center; justify-content: center; padding: 14px; 
             color: var(--logout-red); text-decoration: none; font-weight: 600; font-size: 15px;
-            border: 1.5px dashed rgba(255, 118, 117, 0.3); border-radius: 12px; 
-            transition: 0.3s; background: rgba(255, 118, 117, 0.03);
+            border: 1.5px dashed rgba(255, 118, 117, 0.3); border-radius: 12px; transition: 0.3s;
         }
-        .logout-link:hover { background: var(--logout-red); color: white; border-style: solid; box-shadow: 0 5px 15px rgba(255, 118, 117, 0.3); }
+        .logout-link:hover { background: var(--logout-red); color: white; border-style: solid; }
 
         /* --- MAIN CONTENT --- */
         .main-content { margin-left: 280px; flex: 1; padding: 40px; width: calc(100% - 280px); }
@@ -93,46 +93,29 @@ if (isset($_POST['simpan'])) {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.03);
         }
-        .breadcrumb { font-size: 14px; color: #888; }
-        .breadcrumb strong { color: #333; }
 
-        /* --- FORM CARD --- */
-        .card-form { 
-            background: white; border-radius: 20px; padding: 40px; 
-            max-width: 600px; margin: 20px auto;
-            border-left: 6px solid var(--active-blue); 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.04); 
-        }
-        .card-form h2 { font-size: 24px; font-weight: 700; color: #333; margin-bottom: 10px; text-align: center; }
-        .card-form p { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
+        .card-main { background: white; padding: 35px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); max-width: 700px; margin: 0 auto; }
+        .card-header-flex { margin-bottom: 25px; }
+        .card-header-flex h2 { color: #1e293b; font-weight: 800; font-size: 22px; }
 
+        /* Form Style */
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 700; margin-bottom: 8px; font-size: 14px; color: #444; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 700; color: #475569; font-size: 14px; }
+        .form-control { 
+            width: 100%; padding: 12px 15px; border: 2px solid #f1f5f9; border-radius: 12px; 
+            outline: none; transition: 0.3s; font-family: inherit; font-size: 14px;
+        }
+        .form-control:focus { border-color: var(--active-blue); background: #fff; }
         
-        input, select { 
-            width: 100%; padding: 14px 18px; border: 1.5px solid #edf2f7; 
-            border-radius: 12px; font-size: 15px; transition: 0.3s; 
-            background: #f8fafc; font-family: inherit;
+        .btn-simpan { 
+            background: var(--active-blue); color: white; padding: 12px 25px; border: none; border-radius: 12px; 
+            font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 10px;
         }
-        input:focus, select:focus { 
-            border-color: var(--active-blue); outline: none; background: white; 
-            box-shadow: 0 0 0 4px rgba(59, 157, 242, 0.1); 
+        .btn-simpan:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(59, 157, 242, 0.3); }
+        
+        .btn-batal {
+            text-decoration: none; color: #64748b; font-weight: 600; font-size: 14px; margin-left: 15px;
         }
-
-        .btn-save { 
-            background: var(--active-blue); color: white; border: none; padding: 16px; 
-            border-radius: 12px; cursor: pointer; width: 100%; font-weight: 700; 
-            font-size: 16px; margin-top: 15px; transition: 0.3s;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-        }
-        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 157, 242, 0.3); }
-
-        .back-link { 
-            display: block; text-align: center; margin-top: 25px; 
-            color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: 600; 
-            transition: 0.3s;
-        }
-        .back-link:hover { color: var(--danger); }
     </style>
 </head>
 <body>
@@ -157,45 +140,48 @@ if (isset($_POST['simpan'])) {
 
     <div class="main-content">
         <div class="top-navbar">
-            <div class="breadcrumb">Halaman / Manajemen User / <strong>Tambah User</strong></div>
-            <div style="font-size: 14px;">Login as: <strong><?= htmlspecialchars($username_session); ?></strong></div>
+            <div style="font-size: 14px; color: #888;">Manajemen User / <strong>Tambah User</strong></div>
+            <div style="font-size: 14px;">Login as: <strong><?= htmlspecialchars($nama_session); ?></strong></div>
         </div>
 
-        <div class="card-form">
-            <h2>Tambah User Baru 👥</h2>
-            <p>Daftarkan akun petugas atau peminjam baru ke dalam sistem.</p>
-            
-            <form method="POST">
+        <div class="card-main">
+            <div class="card-header-flex">
+                <h2>Tambah Pengguna Baru 👤</h2>
+                <p style="color: #64748b; font-size: 14px;">Pastikan data yang diinput sudah sesuai.</p>
+            </div>
+
+            <form action="" method="POST">
                 <div class="form-group">
-                    <label><i class="fas fa-id-card"></i> Nama Lengkap</label>
-                    <input type="text" name="nama_lengkap" placeholder="Nama lengkap sesuai identitas" required autofocus>
+                    <label>Nama Lengkap</label>
+                    <input type="text" name="nama_lengkap" class="form-control" placeholder="Contoh: admin" required>
                 </div>
 
                 <div class="form-group">
-                    <label><i class="fas fa-user"></i> Username</label>
-                    <input type="text" name="username" placeholder="Contoh: hanif_admin" required>
+                    <label>Username</label>
+                    <input type="text" name="username" class="form-control" placeholder="Contoh: admin01" required>
                 </div>
 
                 <div class="form-group">
-                    <label><i class="fas fa-key"></i> Password</label>
-                    <input type="password" name="password" placeholder="••••••••" required>
+                    <label>Password</label>
+                    <input type="password" name="password" class="form-control" placeholder="Minimal 6 karakter" required>
                 </div>
 
                 <div class="form-group">
-                    <label><i class="fas fa-user-shield"></i> Level Access</label>
-                    <select name="level_pilihan" required>
-                        <option value="" disabled selected>-- Pilih Hak Akses --</option>
-                        <option value="admin">Admin (Full Access)</option>
-                        <option value="petugas">Petugas (Inventaris)</option>
-                        <option value="peminjam">Peminjam (User)</option>
+                    <label>Level Akses</label>
+                    <select name="level" class="form-control" required>
+                        <option value="">-- Pilih Level --</option>
+                        <option value="admin">Admin</option>
+                        <option value="petugas">Petugas</option>
+                        <option value="peminjam">Peminjam</option>
                     </select>
                 </div>
 
-                <button type="submit" name="simpan" class="btn-save">
-                    <i class="fas fa-user-plus"></i> Simpan Pengguna
-                </button>
-                
-                <a href="user.php" class="back-link">← Kembali ke Manajemen User</a>
+                <div style="margin-top: 30px; display: flex; align-items: center;">
+                    <button type="submit" name="simpan" class="btn-simpan">
+                        <i class="fas fa-save"></i> Simpan Pengguna
+                    </button>
+                    <a href="user.php" class="btn-batal">Batal</a>
+                </div>
             </form>
         </div>
     </div>
