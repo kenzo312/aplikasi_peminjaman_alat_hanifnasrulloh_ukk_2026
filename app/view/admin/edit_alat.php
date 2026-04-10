@@ -12,6 +12,7 @@ if (!$conn) {
 
 $id = isset($_GET['id']) ? $_GET['id'] : 0;
 
+// Ambil data lama termasuk nama file gambarnya
 $sql = "SELECT * FROM alat WHERE alat_id = ?";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_bind_param($stmt, "i", $id);
@@ -28,12 +29,42 @@ if (isset($_POST['update'])) {
     $nama_alat = $_POST['nama_alat'];
     $stok      = $_POST['stok'];
     $deskripsi = $_POST['deskripsi'];
+    
+    // Logika Ganti Gambar
+    $foto_nama = $_FILES['gambar']['name'];
+    $foto_tmp  = $_FILES['gambar']['tmp_name'];
 
-    $sql_update = "UPDATE alat SET nama_alat=?, deskripsi=?, stok=? WHERE alat_id=?";
-    $stmt_edit = mysqli_prepare($conn, $sql_update);
-    mysqli_stmt_bind_param($stmt_edit, "ssii", $nama_alat, $deskripsi, $stok, $id);
+    if (!empty($foto_nama)) {
+        // Jika user mengunggah foto baru
+        $ekstensi_boleh = array('png', 'jpg', 'jpeg');
+        $x = explode('.', $foto_nama);
+        $ekstensi = strtolower(end($x));
+        $nama_file_baru = time() . '-' . $foto_nama;
 
-    if (mysqli_stmt_execute($stmt_edit)) {
+        if (in_array($ekstensi, $ekstensi_boleh)) {
+            // Hapus foto lama dari folder img agar tidak menumpuk (jika ada)
+            if ($data['gambar'] && file_exists("img/" . $data['gambar'])) {
+                unlink("img/" . $data['gambar']);
+            }
+
+            // Pindahkan file baru
+            move_uploaded_file($foto_tmp, 'img/' . $nama_file_baru);
+
+            // Update database dengan gambar baru
+            $sql_update = "UPDATE alat SET nama_alat=?, deskripsi=?, stok=?, gambar=? WHERE alat_id=?";
+            $stmt_edit = mysqli_prepare($conn, $sql_update);
+            mysqli_stmt_bind_param($stmt_edit, "ssisi", $nama_alat, $deskripsi, $stok, $nama_file_baru, $id);
+        } else {
+            echo "<script>alert('Format gambar harus JPG atau PNG!');</script>";
+        }
+    } else {
+        // Jika user tidak ganti gambar, update data teks saja
+        $sql_update = "UPDATE alat SET nama_alat=?, deskripsi=?, stok=? WHERE alat_id=?";
+        $stmt_edit = mysqli_prepare($conn, $sql_update);
+        mysqli_stmt_bind_param($stmt_edit, "ssii", $nama_alat, $deskripsi, $stok, $id);
+    }
+
+    if (isset($stmt_edit) && mysqli_stmt_execute($stmt_edit)) {
         echo "<script>alert('Data berhasil diperbarui!'); window.location='dashboard.php';</script>";
         exit;
     } else {
@@ -52,7 +83,6 @@ if (isset($_POST['update'])) {
         :root {
             --primary: #4f46e5;
             --primary-hover: #4338ca;
-            --bg: #f8fafc;
             --text-main: #1e293b;
             --text-label: #64748b;
             --white: #ffffff;
@@ -66,124 +96,64 @@ if (isset($_POST['update'])) {
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            padding: 20px;
         }
 
         .edit-card {
             background: var(--white);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 450px;
-            transition: transform 0.3s ease;
         }
 
-        .edit-card:hover {
-            transform: translateY(-5px);
-        }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h2 { margin: 0; color: var(--text-main); font-size: 22px; }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h2 { 
-            margin: 0; 
-            color: var(--text-main); 
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .header p {
-            color: var(--text-label);
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        .form-group { 
-            margin-bottom: 20px; 
-        }
-
-        label { 
-            display: block; 
-            font-weight: 600; 
-            margin-bottom: 8px; 
-            color: var(--text-label);
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-label); font-size: 13px; text-transform: uppercase; }
 
         input, textarea { 
-            padding: 12px 16px; 
-            width: 100%; 
-            box-sizing: border-box;
-            border: 2px solid #f1f5f9; 
-            border-radius: 12px; 
-            font-size: 15px;
-            background-color: #f8fafc;
-            color: var(--text-main);
-            transition: all 0.2s ease;
+            width: 100%; padding: 12px; border: 2px solid #f1f5f9; border-radius: 12px; 
+            box-sizing: border-box; font-size: 14px; background: #f8fafc;
         }
 
-        input:focus, textarea:focus {
-            border-color: var(--primary);
-            background-color: var(--white);
-            outline: none;
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        /* Styling khusus Preview Gambar */
+        .preview-container {
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 10px;
+            border: 2px dashed #cbd5e1;
         }
 
-        .btn-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 30px;
+        .img-display {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 8px;
+            object-fit: cover;
+            display: block;
+            margin: 0 auto 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .file-input {
+            font-size: 12px;
+            background: none;
+            border: none;
+            padding: 0;
         }
 
         .btn-save { 
-            width: 100%;
-            padding: 14px; 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            font-weight: 700;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
-        }
-
-        .btn-save:hover { 
-            background: var(--primary-hover);
-            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+            width: 100%; padding: 14px; background: var(--primary); color: white; 
+            border: none; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 16px;
         }
 
         .btn-back { 
-            text-align: center;
-            padding: 12px;
-            background: transparent;
-            color: var(--text-label);
-            text-decoration: none;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            border: 2px solid #f1f5f9;
-        }
-
-        .btn-back:hover { 
-            background: #f1f5f9;
-            color: var(--text-main);
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .edit-card {
-                padding: 25px;
-                margin: 20px;
-            }
+            display: block; text-align: center; margin-top: 15px; color: var(--text-label);
+            text-decoration: none; font-size: 14px; font-weight: 600;
         }
     </style>
 </head>
@@ -191,30 +161,42 @@ if (isset($_POST['update'])) {
 
     <div class="edit-card">
         <div class="header">
-            <h2>Update Data Alat</h2>
-            <p>Kelola informasi stok dan deskripsi alat</p>
+            <h2>Edit Detail Alat</h2>
+            <p style="color: #64748b; font-size: 13px;">Perbarui spesifikasi dan foto unit</p>
         </div>
 
-        <form action="" method="POST">
+        <form action="" method="POST" enctype="multipart/form-data">
+            
+            <div class="form-group">
+                <label>Foto Unit Saat Ini</label>
+                <div class="preview-container">
+                    <?php if (!empty($data['gambar']) && file_exists("img/" . $data['gambar'])): ?>
+                        <img src="img/<?php echo $data['gambar']; ?>" class="img-display" alt="Foto Alat">
+                    <?php else: ?>
+                        <div style="padding: 20px; color: #94a3b8;">Tidak ada foto</div>
+                    <?php endif; ?>
+                    <input type="file" name="gambar" class="file-input">
+                </div>
+                <small style="color: #94a3b8; font-size: 11px;">*Kosongkan jika tidak ingin mengubah foto</small>
+            </div>
+
             <div class="form-group">
                 <label>Nama Alat</label>
-                <input type="text" name="nama_alat" value="<?php echo htmlspecialchars($data['nama_alat']); ?>" placeholder="Contoh: PC Gaming" required>
+                <input type="text" name="nama_alat" value="<?php echo htmlspecialchars($data['nama_alat']); ?>" required>
             </div>
 
             <div class="form-group">
                 <label>Jumlah Unit (Stok)</label>
-                <input type="number" name="stok" value="<?php echo (int)$data['stok']; ?>" placeholder="0" required>
+                <input type="number" name="stok" value="<?php echo (int)$data['stok']; ?>" required>
             </div>
             
             <div class="form-group">
-                <label>Deskripsi Detail</label>
-                <textarea name="deskripsi" rows="4" placeholder="Masukkan spesifikasi alat..." required><?php echo htmlspecialchars($data['deskripsi']); ?></textarea>
+                <label>Deskripsi Alat</label>
+                <textarea name="deskripsi" rows="3" required><?php echo htmlspecialchars($data['deskripsi']); ?></textarea>
             </div>
 
-            <div class="btn-container">
-                <button type="submit" name="update" class="btn-save">Simpan Perubahan</button>
-                <a href="dashboard.php" class="btn-back">Batal & Kembali</a>
-            </div>
+            <button type="submit" name="update" class="btn-save">Simpan Perubahan</button>
+            <a href="dashboard.php" class="btn-back">Batal & Kembali</a>
         </form>
     </div>
 

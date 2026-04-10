@@ -20,10 +20,18 @@
         .header h2 { color: #1e293b; font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
         .header p { color: #64748b; font-size: 1rem; }
 
+        /* Alert untuk Berhasil */
         .alert-success {
             background: #f0fdf4; color: #166534; padding: 12px;
             border-radius: 12px; margin-bottom: 25px; font-size: 0.9rem; 
             text-align: center; border: 1px solid #bbf7d0;
+        }
+
+        /* Alert untuk Error/Gagal */
+        .alert-danger {
+            background: #fef2f2; color: #991b1b; padding: 12px;
+            border-radius: 12px; margin-bottom: 25px; font-size: 0.9rem; 
+            text-align: center; border: 1px solid #fecaca;
         }
 
         .input-group { margin-bottom: 15px; position: relative; }
@@ -54,10 +62,26 @@
         <p>Lengkapi data diri Anda</p>
     </div>
 
-    <?php if(isset($_GET['pesan']) && $_GET['pesan'] == "berhasil"): ?>
-        <div class="alert-success">
-            <i class="fas fa-check-circle"></i> Berhasil daftar! Silakan Login.
-        </div>
+    <?php if(isset($_GET['pesan'])): ?>
+        
+        <?php if($_GET['pesan'] == "berhasil"): ?>
+            <div class="alert-success">
+                <i class="fas fa-check-circle"></i> Berhasil daftar! Silakan <a href="login.php" style="color: inherit; font-weight: bold;">Login</a>.
+            </div>
+        <?php endif; ?>
+
+        <?php if($_GET['pesan'] == "username_sudah_ada"): ?>
+            <div class="alert-danger">
+                <i class="fas fa-exclamation-circle"></i> Username sudah digunakan!
+            </div>
+        <?php endif; ?>
+
+        <?php if($_GET['pesan'] == "gagal"): ?>
+            <div class="alert-danger">
+                <i class="fas fa-times-circle"></i> Terjadi kesalahan teknis.
+            </div>
+        <?php endif; ?>
+
     <?php endif; ?>
 
     <form action="proses_register.php" method="POST">
